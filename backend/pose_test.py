@@ -176,7 +176,7 @@ def main():
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
                     (255, 255, 255),
-                    0.5,
+                    1,
                     cv2.LINE_AA,
                 )
 
