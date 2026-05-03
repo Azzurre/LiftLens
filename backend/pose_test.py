@@ -30,4 +30,16 @@ def main():
             
             # Convert the BGR image to RGB by OpenCV for MediaPipe
             
-            rgb_frame = cv2.
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Process the frame with MediaPipe Pose
+            results = pose.process(rgb_frame)
+            
+            # Draw landmarks if pose is detected
+            if results.pose_landmarks:
+                mp_drawing.draw_landmarks(
+                    frame,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                )
+                
