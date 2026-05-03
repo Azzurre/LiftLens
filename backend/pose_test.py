@@ -8,7 +8,7 @@ from mediapipe.tasks.python import vision
 MODEL_PATH = "models/pose_landmarker_lite.task"
 VIDEO_PATH = "squat_sample.mp4"
 
-#Calclulate angles
+#Calculate angles
 def calculate_angle(a, b, c):
     ax, ay = a
     bx, by = b
@@ -18,17 +18,18 @@ def calculate_angle(a, b, c):
     ba_y = ay - by
     bc_x = cx - bx
     bc_y = cy - by
-    
+    # Calculate the angle using the dot product formula
     dot_product = ba_x * bc_x + ba_y * bc_y
     magnitude_ba = math.sqrt(ba_x**2 + ba_y**2)
     magnitude_bc = math.sqrt(bc_x**2 + bc_y**2)
     
+    # To avoid division by zero, check if the magnitudes are non-zero
     if magnitude_ba == 0 or magnitude_bc == 0:
         return 0
-    
+    # Clamp the cosine value to the range [-1, 1] to avoid numerical issues with acos
     cosine_angle = dot_product / (magnitude_ba * magnitude_bc)
     cosine_angle = max(min(cosine_angle, 1), -1)
-    
+    # Calculate the angle in degrees
     angle = math.degrees(math.acos(cosine_angle))
     return angle
 
