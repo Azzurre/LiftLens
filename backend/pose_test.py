@@ -51,7 +51,7 @@ def draw_landmarks_on_frame(frame, detection_result):
     """
 
     if not detection_result.pose_landmarks:
-        return frame
+        return frame, None
 
     height, width, _ = frame.shape
 
@@ -62,7 +62,7 @@ def draw_landmarks_on_frame(frame, detection_result):
     for landmark in pose_landmarks:
         x = int(landmark.x * width)
         y = int(landmark.y * height)
-        cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+        cv2.circle(frame, (x, y), 3, (0, 255, 0), -1)
 
     # Draw simple skeleton connections
     connections = [
@@ -92,9 +92,9 @@ def draw_landmarks_on_frame(frame, detection_result):
         start_point = (int(start.x * width), int(start.y * height))
         end_point = (int(end.x * width), int(end.y * height))
 
-        cv2.line(frame, start_point, end_point, (255, 0, 0), 2)
+        cv2.line(frame, start_point, end_point, (255, 0, 0), 1)
 
-    return frame
+    return frame, pose_landmarks
 
 
 def main():
@@ -146,7 +146,39 @@ def main():
                 timestamp_ms,
             )
 
-            frame = draw_landmarks_on_frame(frame, detection_result)
+            frame, pose_landmarks = draw_landmarks_on_frame(frame, detection_result)
+            
+            if pose_landmarks:
+                height, width, _ = frame.shape
+                # Get the coordinates of the relevant landmarks
+                
+                left_hip = get_landmark_points(pose_landmarks, 23, width, height)
+                left_knee = get_landmark_points(pose_landmarks, 25, width, height)
+                left_ankle = get_landmark_points(pose_landmarks, 27, width, height)
+                # Calculate the angle at the left knee
+                left_knee_angle = calculate_angle(left_hip, left_knee, left_ankle)
+                # Display the angle on the frame
+                
+                
+                label = f"{int(left_knee_angle)} deg"
+                
+                cv2.rectangle(
+                    frame,
+                    (20, 20),
+                    (300, 70),
+                    (0, 0, 0),
+                    -1,
+                )
+                cv2.putText(
+                    frame,
+                    label,
+                    (30,55),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    0.5,
+                    cv2.LINE_AA,
+                )
 
             cv2.imshow("LiftLens Pose Test", frame)
 
