@@ -67,46 +67,55 @@ def main():
         print("Error: Could not open video.")
         return
     
-    mp_pose = mp.solutions.pose
-    mp_drawing = mp.solutions.drawing_utils
+    base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
     
-    with mp_pose.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        enable_segmentation=False,
-        min_detection_confidence=0.5,
+    options = vision.PoseLandmarkerOptions(
+        base_options=base_options,
+        running_mode=vision.RunningMode.VIDEO,
+        num_poses=1,
+        min_pose_detection_confidence=0.5,
+        min_pose_tracking_confidence=0.5,
         min_tracking_confidence=0.5,
-    ) as pose:
+    )
+    with vision.PoseLandmarker.create_from_options(options) as pose_landmarker:
         
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        
+        frame_index = 0
         while True:
             success, frame = cap.read()
             
             if not success:
-                print("End of video.")
                 break
             
-            # Convert the BGR image to RGB by OpenCV for MediaPipe
+            timestamp_ms = int((frame_index / fps) * 1000)
             
+            # Convert the frame to RGB as MediaPipe expects RGB input
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Process the frame with MediaPipe Pose
-            results = pose.process(rgb_frame)
+            #create a MediaPipe Image from the RGB frame
+            mp_image = mp.Image(
+                image_format=mp.ImageFormat.SRGB, 
+                data=rgb_frame
+            )
             
-            # Draw landmarks if pose is detected
-            if results.pose_landmarks:
-                mp_drawing.draw_landmarks(
-                    frame,
-                    results.pose_landmarks,
-                    mp_pose.POSE_CONNECTIONS,
-                )
-                
-                cv2.imshow("LiftLens Pose Test", frame)
-                
-                # Press q to exit
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-                
-        cap.release()
-        cv2.destroyAllWindows()
+            # Process the frame with MediaPipe Pose
+            detection_result = pose_landmarker.detect(mp_image, timestamp_ms)
+            
+            # Draw landmarks on the frame
+            draw_landmarks_on_frame(frame, detection_result)
+            
+            # Display the frame
+            cv2.imshow("LiftLens Pose Test", frame)
+            
+            # Press q to exit
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            
+            frame_index += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+
 if __name__ == "__main__":
     main()
