@@ -1,8 +1,12 @@
 import cv2
 import mediapipe as mp
+import numpy as np
+
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 def main():
-    video_path = "sample_squat.mp4"     # Replace with your video path
+    video_path = "squat_sample.mp4"     # Replace with your video path
     
     cap = cv2.VideoCapture(video_path)
     
