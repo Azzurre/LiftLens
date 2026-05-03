@@ -33,6 +33,13 @@ def calculate_angle(a, b, c):
     angle = math.degrees(math.acos(cosine_angle))
     return angle
 
+# Helper function to draw landmarks and connections on the frame
+def get_landmark_points(landmarks, landmark_index, width, height):
+    landmark = landmarks[landmark_index]
+    x = int(landmark.x * width)
+    y = int(landmark.y * height)
+    return (x, y)
+
 
 def draw_landmarks_on_frame(frame, detection_result):
     """
