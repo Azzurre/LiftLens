@@ -1,12 +1,36 @@
 import cv2
 import mediapipe as mp
-
+import math
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
 MODEL_PATH = "models/pose_landmarker_lite.task"
 VIDEO_PATH = "squat_sample.mp4"
+
+#Calclulate angles
+def calculate_angle(a, b, c):
+    ax, ay = a
+    bx, by = b
+    cx, cy = c
+    
+    ba_x = ax - bx
+    ba_y = ay - by
+    bc_x = cx - bx
+    bc_y = cy - by
+    
+    dot_product = ba_x * bc_x + ba_y * bc_y
+    magnitude_ba = math.sqrt(ba_x**2 + ba_y**2)
+    magnitude_bc = math.sqrt(bc_x**2 + bc_y**2)
+    
+    if magnitude_ba == 0 or magnitude_bc == 0:
+        return 0
+    
+    cosine_angle = dot_product / (magnitude_ba * magnitude_bc)
+    cosine_angle = max(min(cosine_angle, 1), -1)
+    
+    angle = math.degrees(math.acos(cosine_angle))
+    return angle
 
 
 def draw_landmarks_on_frame(frame, detection_result):
