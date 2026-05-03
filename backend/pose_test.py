@@ -25,6 +25,38 @@ def draw_landmarks_on_frame(frame, detection_result):
         x = int(landmark.x * width)
         y = int(landmark.y * height)
         cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)  # Draw a green circle for each landmark
+        
+    #draw connections between landmarks
+    
+    connections = [
+        #arms Shoulders
+        (11, 12)
+        (11, 13),
+        (13, 15),
+        (12, 14),
+        (14, 16),
+        (14, 16),
+        
+        #torso
+        (11, 23),
+        (12, 24),
+        (23, 24),
+        
+        #legs
+        (23, 25),
+        (25, 27),
+        (24, 26),
+        (26, 28)
+    ]
+    
+    for start_idx, end_idx in connections:
+        start= pose_landmarks[start_idx]
+        end = pose_landmarks[end_idx]
+        
+        start_point = (int(start.x * width), int(start.y * height))
+        end_point = (int(end.x * width), int(end.y * height))
+        
+        cv2.line(frame, start_point, end_point, (255, 0, 0), 2)  # Draw a blue line for connections
     
 def main():
     video_path = VIDEO_PATH     # Replace with your video path
