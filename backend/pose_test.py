@@ -43,3 +43,13 @@ def main():
                     mp_pose.POSE_CONNECTIONS,
                 )
                 
+                cv2.imshow("LiftLens Pose Test", frame)
+                
+                # Press q to exit
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                
+        cap.release()
+        cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()
