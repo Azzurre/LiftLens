@@ -5,8 +5,29 @@ import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
+MODEL_PATH = "models/pose_landmarker_lite.task"
+VIDEO_PATH = "squat_sample.mp4"     # Replace with your video path
+
+
+def draw_landmarks_on_frame(frame, detection_result):
+    """Draw pose landmarks on the frame.
+    
+    MediaPipe provides normalized coordinates, so we need to convert them to pixel coordinates.
+    """
+    
+    if not detection_result.pose_landmarks:
+        return frame
+    
+    height, width, _ = frame.shape
+    
+    pose_landmarks = detection_result.pose_landmarks[0]  # Get the first detected pose
+    for landmark in pose_landmarks:
+        x = int(landmark.x * width)
+        y = int(landmark.y * height)
+        cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)  # Draw a green circle for each landmark
+    
 def main():
-    video_path = "squat_sample.mp4"     # Replace with your video path
+    video_path = VIDEO_PATH     # Replace with your video path
     
     cap = cv2.VideoCapture(video_path)
     
