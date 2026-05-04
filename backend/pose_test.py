@@ -244,12 +244,6 @@ def main():
                     1,
                     cv2.LINE_AA,
                 )
-                cv2.putText(frame, label_angle, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(frame, label_reps, (30, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(frame, label_position, (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(frame, label_down_frames, (30, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(frame, label_up_frames, (30, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(frame, label_cooldown, (30, 175), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
 
             cv2.imshow("LiftLens Pose Test", frame)
 
