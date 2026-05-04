@@ -123,6 +123,9 @@ def main():
 
     with vision.PoseLandmarker.create_from_options(options) as pose_landmarker:
         frame_index = 0
+        
+        rep_count = 0
+        squat_position = "up"  # Start in the "up" position
 
         while True:
             success, frame = cap.read()
@@ -157,10 +160,20 @@ def main():
                 left_ankle = get_landmark_points(pose_landmarks, 27, width, height)
                 # Calculate the angle at the left knee
                 left_knee_angle = calculate_angle(left_hip, left_knee, left_ankle)
+                
+                if left_knee_angle < 100 and squat_position == "up":
+                    squat_position = "down"
+                
+                if left_knee_angle > 150 and squat_position == "down":
+                    squat_position = "up"
+                    rep_count += 1
+                    
                 # Display the angle on the frame
                 
                 
-                label = f"{int(left_knee_angle)} deg"
+                label_angle = f"{int(left_knee_angle)} deg"
+                label_reps = f"Reps: {rep_count}"
+                label_position = f"Position: {squat_position}"
                 
                 cv2.rectangle(
                     frame,
@@ -171,8 +184,28 @@ def main():
                 )
                 cv2.putText(
                     frame,
-                    label,
-                    (30,55),
+                    label_angle,
+                    (30, 55),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+                cv2.putText(
+                    frame,
+                    label_reps,
+                    (30, 90),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+                cv2.putText(
+                    frame,
+                    label_position,
+                    (30, 125),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
                     (255, 255, 255),
