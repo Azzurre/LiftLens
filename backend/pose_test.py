@@ -126,6 +126,17 @@ def main():
         
         rep_count = 0
         squat_position = "up"  # Start in the "up" position
+        
+        down_frames = 0
+        up_frames = 0
+        
+        MIN_DOWN_FRAMES = 5
+        MIN_UP_FRAMES = 5
+        
+        rep_cooldown = 0
+        COOLDOWN_FRAMES = 10
+        
+        
 
         while True:
             success, frame = cap.read()
@@ -161,13 +172,30 @@ def main():
                 # Calculate the angle at the left knee
                 left_knee_angle = calculate_angle(left_hip, left_knee, left_ankle)
                 
-                if left_knee_angle < 100 and squat_position == "up":
-                    squat_position = "down"
+                DOWN_ANGLE = 100
+                UP_ANGLE = 150
                 
-                if left_knee_angle > 150 and squat_position == "down":
+                if rep_cooldown > 0:
+                    rep_cooldown -= 1
+                    
+                    
+                if left_knee_angle < DOWN_ANGLE:
+                    down_frames += 1
+                else:
+                    down_frames = 0
+
+                if left_knee_angle > UP_ANGLE :
+                    up_frames += 1
+                else:
+                    up_frames = 0
+
+                if down_frames >= MIN_DOWN_FRAMES and squat_position == "up":
+                    squat_position = "down"
+                    
+                if (up_frames >= MIN_UP_FRAMES and squat_position == "down" and rep_cooldown == 0):
                     squat_position = "up"
                     rep_count += 1
-                    
+                    rep_cooldown = COOLDOWN_FRAMES
                 # Display the angle on the frame
                 
                 
@@ -175,6 +203,10 @@ def main():
                 label_reps = f"Reps: {rep_count}"
                 label_position = f"Position: {squat_position}"
                 
+                
+                label_down_frames = f"Down frames: {down_frames}"
+                label_up_frames = f"Up frames: {up_frames}"
+                label_cooldown = f"Cooldown: {rep_cooldown}"
                 cv2.rectangle(
                     frame,
                     (20, 20),
@@ -212,6 +244,12 @@ def main():
                     1,
                     cv2.LINE_AA,
                 )
+                cv2.putText(frame, label_angle, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_reps, (30, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_position, (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_down_frames, (30, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_up_frames, (30, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_cooldown, (30, 175), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
 
             cv2.imshow("LiftLens Pose Test", frame)
 
