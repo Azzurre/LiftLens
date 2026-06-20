@@ -1,8 +1,10 @@
 import cv2
 import mediapipe as mp
 import math
+import json
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
 
 
 MODEL_PATH = "models/pose_landmarker_lite.task"
@@ -120,6 +122,70 @@ def classify_squat_position(min_knee_angle):
         return "Almost deep enough"
     else:
         return "Too shallow"
+
+
+def generate_analysis_summary(rep_count, rep_depths):
+    """
+    Generates a summary of the squat analysis.
+    """
+    if rep_count == 0:
+        return {
+            "reps": 0,
+            "average_depth": None,
+            "best_depth": None,
+            "score": 0,
+            "feedback": [
+                "No full squat reps were detected",
+                "Make sure your full body is visible and try again"
+            ]
+        }
+    
+    average_depth = sum(rep_depths) / len(rep_depths) if rep_depths else None
+    best_depth = min(rep_depths) if rep_depths else None
+    
+    good_reps = 0
+    shallow_reps = 0
+    
+    for depth in rep_depths:
+        if depth < 90:
+            good_reps += 1
+        elif depth < 115:
+            shallow_reps += 1
+    feedback = []
+    if good_reps == rep_count:
+        feedback.append("All reps were good depth!")
+    elif good_reps > rep_count / 2:
+        feedback.append(f"{good_reps} out of {rep_count} reps were good depth.")
+        
+    if shallow_reps > 0:
+        feedback.append(f"{shallow_reps} reps were too shallow. Try to go lower.")
+        
+    if average_depth is not None:
+        if average_depth < 90:
+            feedback.append("Your average squat depth is good.")
+        elif average_depth < 115:
+            feedback.append("Your average squat depth is almost deep enough.")
+        else:
+            feedback.append("Your average squat depth is too shallow. Try to go lower.")
+    
+    score = 100
+    
+    if average_depth is not None:
+        if average_depth < 90:
+            score -= int((average_depth - 90) * 1.5)
+    score -= shallow_reps * 8
+    
+    score = max(0, min(100, score))
+    
+    return {
+        "reps": rep_count,
+        "average_depth": round(average_depth, 2) if average_depth is not None else None,
+        "best_depth": round(best_depth, 2) if best_depth is not None else None,
+        "score": score,
+        "feedback": feedback,
+        "rep_depths": [round(depth, 2) for depth in rep_depths]
+    }
+    
 
 def main():
     cap = cv2.VideoCapture(VIDEO_PATH)
