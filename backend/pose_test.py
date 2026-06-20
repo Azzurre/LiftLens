@@ -40,6 +40,14 @@ def get_landmark_points(landmarks, landmark_index, width, height):
     y = int(landmark.y * height)
     return (x, y)
 
+def landmarks_are_visible(landmarks, indices, min_visibility=0.5):
+    """
+    Check if the specified landmarks are visible based on their visibility scores.
+    """
+    for index in indices:
+        if landmarks[index].visibility < min_visibility:
+            return False
+    return True
 
 def draw_landmarks_on_frame(frame, detection_result):
     """
@@ -96,6 +104,22 @@ def draw_landmarks_on_frame(frame, detection_result):
 
     return frame, pose_landmarks
 
+def classify_squat_position(min_knee_angle):
+    """
+    Classifies squat depth based on the lowest knee angle reached during a repetition.
+    Lower knee angle generally means deeper squat.
+    These thresholds are beginner friendly estimates and can be tuned later.
+    """
+    
+    if min_knee_angle is None:
+        return "No depth detected"
+    
+    if min_knee_angle < 90:
+        return "Good depth"
+    elif min_knee_angle < 115:
+        return "Almost deep enough"
+    else:
+        return "Too shallow"
 
 def main():
     cap = cv2.VideoCapture(VIDEO_PATH)
@@ -136,7 +160,9 @@ def main():
         rep_cooldown = 0
         COOLDOWN_FRAMES = 10
         
-        
+        current_rep_min_angle = None
+        rep_depths = []
+        last_depth_feedback = "No reps yet"
 
         while True:
             success, frame = cap.read()
@@ -164,7 +190,29 @@ def main():
             
             if pose_landmarks:
                 height, width, _ = frame.shape
-                # Get the coordinates of the relevant landmarks
+                # Get the coordinates of the relevant landmarks 
+                
+                left_leg_landmarks = [23, 25, 27]
+
+                if not landmarks_are_visible(pose_landmarks, left_leg_landmarks):
+                    cv2.putText(
+                        frame,
+                        "Pose unclear - adjust camera",
+                        (30, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 0, 255),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+                    cv2.imshow("LiftLens Pose Test", frame)
+
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+
+                    frame_index += 1
+                    continue
                 
                 left_hip = get_landmark_points(pose_landmarks, 23, width, height)
                 left_knee = get_landmark_points(pose_landmarks, 25, width, height)
@@ -191,12 +239,42 @@ def main():
 
                 if down_frames >= MIN_DOWN_FRAMES and squat_position == "up":
                     squat_position = "down"
+                    current_rep_min_angle = left_knee_angle  # Start tracking the minimum angle for this rep
+                    if squat_position == "down":
+                        if current_rep_min_angle is None or left_knee_angle < current_rep_min_angle:
+                            current_rep_min_angle = left_knee_angle
                     
                 if (up_frames >= MIN_UP_FRAMES and squat_position == "down" and rep_cooldown == 0):
                     squat_position = "up"
                     rep_count += 1
                     rep_cooldown = COOLDOWN_FRAMES
+                    
+                    if current_rep_min_angle is not None:
+                        rep_depths.append(current_rep_min_angle)
+                        last_depth_feedback = classify_squat_position(current_rep_min_angle)
+                    current_rep_min_angle = None  # Reset for the next rep
                 # Display the angle on the frame
+                
+                if rep_depths:
+                    average_depth = sum(rep_depths) / len(rep_depths)
+                    best_depth = min(rep_depths)
+                else:
+                    average_depth = None
+                    best_depth = None
+                    
+                if current_rep_min_angle is not None:
+                    label_current_depth = f"Current rep depth: {int(current_rep_min_angle)} deg"
+                else:
+                    label_current_depth = "Current rep depth: N/A"
+                
+                if rep_depths:
+                    label_last_depth = f"Last rep depth: {int(rep_depths[-1])} deg ({last_depth_feedback})"
+                    label_average_depth = f"Average depth: {int(average_depth)} deg"
+                    label_best_depth = f"Best depth: {int(best_depth)} deg"
+                else:
+                    label_last_depth = "Last rep depth: N/A"
+                    label_average_depth = "Average depth: N/A"
+                    label_best_depth = "Best depth: N/A"
                 
                 
                 label_angle = f"{int(left_knee_angle)} deg"
@@ -210,40 +288,19 @@ def main():
                 cv2.rectangle(
                     frame,
                     (20, 20),
-                    (300, 70),
+                    (460, 230),
                     (0, 0, 0),
                     -1,
                 )
-                cv2.putText(
-                    frame,
-                    label_angle,
-                    (30, 55),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255),
-                    1,
-                    cv2.LINE_AA,
-                )
-                cv2.putText(
-                    frame,
-                    label_reps,
-                    (30, 90),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255),
-                    1,
-                    cv2.LINE_AA,
-                )
-                cv2.putText(
-                    frame,
-                    label_position,
-                    (30, 125),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255),
-                    1,
-                    cv2.LINE_AA,
-                )
+                
+                cv2.putText(frame, label_angle, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_reps, (30, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_position, (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+
+                cv2.putText(frame, label_current_depth, (30, 130), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_last_depth, (30, 155), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_average_depth, (30, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, label_best_depth, (30, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
 
             cv2.imshow("LiftLens Pose Test", frame)
 
