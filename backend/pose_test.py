@@ -375,6 +375,11 @@ def main():
 
             frame_index += 1
 
+    summary = generate_analysis_summary(rep_count, rep_depths)
+    
+    print("\n === LiftLens Analysis Summary ===")
+    print(json.dumps(summary, indent=4))
+    
     cap.release()
     cv2.destroyAllWindows()
 
