@@ -13,7 +13,6 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
-# This makes the model path work even if you run Python from another folder
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "models" / "pose_landmarker_lite.task"
 
@@ -32,17 +31,14 @@ def calculate_angle(a, b, c):
     bx, by = b
     cx, cy = c
 
-    # Create vectors from the knee to the hip and ankle
     ba_x = ax - bx
     ba_y = ay - by
 
     bc_x = cx - bx
     bc_y = cy - by
 
-    # Dot product
     dot_product = (ba_x * bc_x) + (ba_y * bc_y)
 
-    # Vector lengths
     magnitude_ba = math.sqrt((ba_x ** 2) + (ba_y ** 2))
     magnitude_bc = math.sqrt((bc_x ** 2) + (bc_y ** 2))
 
@@ -50,8 +46,6 @@ def calculate_angle(a, b, c):
         return 0
 
     cosine_angle = dot_product / (magnitude_ba * magnitude_bc)
-
-    # Prevent tiny floating point errors from crashing acos()
     cosine_angle = max(-1.0, min(1.0, cosine_angle))
 
     angle = math.degrees(math.acos(cosine_angle))
@@ -75,16 +69,12 @@ def get_landmark_point(landmarks, landmark_index, width, height):
 def landmarks_are_visible(landmarks, landmark_indices, min_visibility=0.5):
     """
     Checks if important landmarks are visible enough to trust.
-
-    Example:
-    For the left leg, we check:
-    left hip, left knee, left ankle.
     """
 
     for index in landmark_indices:
         landmark = landmarks[index]
 
-        # Some versions expose visibility. If it does not exist, we do not block.
+        # Some MediaPipe versions expose visibility. If missing, assume visible.
         visibility = getattr(landmark, "visibility", 1.0)
 
         if visibility < min_visibility:
@@ -112,11 +102,35 @@ def classify_squat_depth(min_knee_angle):
         return "Too shallow"
 
 
-def generate_analysis_summary(rep_count, rep_depths, rep_details):
+def classify_imbalance(average_imbalance):
+    """
+    Classifies left/right knee angle difference.
+
+    Lower difference = more balanced movement.
+    Higher difference = possible uneven movement.
+    """
+
+    if average_imbalance is None:
+        return "Not enough data to assess left/right balance."
+
+    if average_imbalance <= 10:
+        return "Left and right side looked well balanced."
+    elif average_imbalance <= 20:
+        return "Slight left/right imbalance detected."
+    else:
+        return "Noticeable left/right imbalance detected."
+
+
+def generate_analysis_summary(
+    rep_count,
+    rep_depths,
+    rep_details,
+    imbalance_values,
+):
     """
     Creates the final analysis result.
 
-    This is the data that our FastAPI backend will later return to React.
+    This is the data that our FastAPI backend returns to React.
     """
 
     if rep_count == 0:
@@ -127,14 +141,27 @@ def generate_analysis_summary(rep_count, rep_depths, rep_details):
             "score": 0,
             "feedback": [
                 "No full squat reps were detected.",
-                "Make sure your full body is visible and try again."
+                "Make sure your full body is visible and try again.",
+                "Not enough data to assess left/right balance.",
             ],
             "rep_depths": [],
-            "rep_details": []
+            "rep_details": [],
+            "average_imbalance": None,
+            "max_imbalance": None,
+            "imbalance_feedback": "Not enough data to assess left/right balance.",
         }
 
     average_depth = sum(rep_depths) / len(rep_depths) if rep_depths else None
     best_depth = min(rep_depths) if rep_depths else None
+
+    average_imbalance = (
+        sum(imbalance_values) / len(imbalance_values)
+        if imbalance_values
+        else None
+    )
+
+    max_imbalance = max(imbalance_values) if imbalance_values else None
+    imbalance_feedback = classify_imbalance(average_imbalance)
 
     good_reps = 0
     shallow_reps = 0
@@ -165,6 +192,8 @@ def generate_analysis_summary(rep_count, rep_depths, rep_details):
         else:
             feedback.append("Your average depth suggests the squats may be too shallow.")
 
+    feedback.append(imbalance_feedback)
+
     # Simple starter scoring system
     score = 100
 
@@ -172,6 +201,10 @@ def generate_analysis_summary(rep_count, rep_depths, rep_details):
         score -= int((average_depth - 90) * 1.5)
 
     score -= shallow_reps * 8
+
+    if average_imbalance is not None and average_imbalance > 10:
+        score -= int((average_imbalance - 10) * 1.2)
+
     score = max(0, min(100, score))
 
     return {
@@ -181,7 +214,14 @@ def generate_analysis_summary(rep_count, rep_depths, rep_details):
         "score": score,
         "feedback": feedback,
         "rep_depths": [round(depth, 2) for depth in rep_depths],
-        "rep_details": rep_details
+        "rep_details": rep_details,
+        "average_imbalance": round(average_imbalance, 2)
+        if average_imbalance is not None
+        else None,
+        "max_imbalance": round(max_imbalance, 2)
+        if max_imbalance is not None
+        else None,
+        "imbalance_feedback": imbalance_feedback,
     }
 
 
@@ -193,7 +233,7 @@ def analyse_video(video_path):
         video_path: path to squat video
 
     Output:
-        summary dictionary with reps, depth, score, and feedback
+        summary dictionary with reps, depth, score, imbalance, and feedback
     """
 
     video_path = str(video_path)
@@ -201,7 +241,7 @@ def analyse_video(video_path):
     if not MODEL_PATH.exists():
         return {
             "error": "Pose model file not found.",
-            "expected_model_path": str(MODEL_PATH)
+            "expected_model_path": str(MODEL_PATH),
         }
 
     cap = cv2.VideoCapture(video_path)
@@ -209,7 +249,7 @@ def analyse_video(video_path):
     if not cap.isOpened():
         return {
             "error": "Could not open video.",
-            "video_path": video_path
+            "video_path": video_path,
         }
 
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -249,6 +289,11 @@ def analyse_video(video_path):
     rep_depths = []
     rep_details = []
 
+    # Imbalance tracking
+    imbalance_values = []
+
+    # Chart/debug tracking
+    angle_series = []
     frame_index = 0
     skipped_unclear_frames = 0
     processed_pose_frames = 0
@@ -302,6 +347,33 @@ def analyse_video(video_path):
                     left_ankle,
                 )
 
+                angle_series.append(
+                    {
+                        "frame": frame_index,
+                        "angle": round(left_knee_angle, 2),
+                    }
+                )
+
+                # Right leg landmarks:
+                # 24 = right hip
+                # 26 = right knee
+                # 28 = right ankle
+                right_leg_indices = [24, 26, 28]
+
+                if landmarks_are_visible(pose_landmarks, right_leg_indices):
+                    right_hip = get_landmark_point(pose_landmarks, 24, width, height)
+                    right_knee = get_landmark_point(pose_landmarks, 26, width, height)
+                    right_ankle = get_landmark_point(pose_landmarks, 28, width, height)
+
+                    right_knee_angle = calculate_angle(
+                        right_hip,
+                        right_knee,
+                        right_ankle,
+                    )
+
+                    knee_imbalance = abs(left_knee_angle - right_knee_angle)
+                    imbalance_values.append(knee_imbalance)
+
                 # Cooldown prevents duplicate fake reps
                 if rep_cooldown > 0:
                     rep_cooldown -= 1
@@ -348,11 +420,13 @@ def analyse_video(video_path):
                             current_rep_min_angle
                         )
 
-                        rep_details.append({
-                            "rep_number": rep_count,
-                            "depth_angle": round(current_rep_min_angle, 2),
-                            "depth_feedback": depth_feedback
-                        })
+                        rep_details.append(
+                            {
+                                "rep_number": rep_count,
+                                "depth_angle": round(current_rep_min_angle, 2),
+                                "depth_feedback": depth_feedback,
+                            }
+                        )
 
                     current_rep_min_angle = None
 
@@ -364,12 +438,16 @@ def analyse_video(video_path):
         rep_count,
         rep_depths,
         rep_details,
+        imbalance_values,
     )
+
+    summary["angle_series"] = angle_series
 
     summary["debug"] = {
         "total_frames": frame_index,
         "processed_pose_frames": processed_pose_frames,
-        "skipped_unclear_frames": skipped_unclear_frames
+        "skipped_unclear_frames": skipped_unclear_frames,
+        "imbalance_samples": len(imbalance_values),
     }
 
     return summary

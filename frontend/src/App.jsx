@@ -18,6 +18,22 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const normaliseAnalysisResponse = (data) => {
+    // Handles:
+    // { analysis: {...} }
+    // { analysis: { analysis: {...} } }
+    // direct {...}
+    if (data?.analysis?.analysis) {
+      return data.analysis.analysis;
+    }
+
+    if (data?.analysis) {
+      return data.analysis;
+    }
+
+    return data;
+  };
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
 
@@ -32,64 +48,55 @@ function App() {
   };
 
   const handleAnalyseVideo = async () => {
-  if (!selectedFile) {
-    setErrorMessage("Please select a video first.");
-    return;
-  }
-
-  setIsLoading(true);
-  setErrorMessage("");
-  setAnalysisResult(null);
-
-  const formData = new FormData();
-  formData.append("file", selectedFile);
-
-  try {
-    const response = await fetch("http://127.0.0.1:8000/analyse", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    console.log("FULL BACKEND DATA:", data);
-
-    if (!response.ok) {
-      setErrorMessage(`Backend error: ${response.status}`);
+    if (!selectedFile) {
+      setErrorMessage("Please select a video first.");
       return;
     }
 
-    if (data.error) {
-      setErrorMessage(data.error);
-      return;
+    setIsLoading(true);
+    setErrorMessage("");
+    setAnalysisResult(null);
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/analyse", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      console.log("FULL BACKEND DATA:", data);
+
+      if (!response.ok) {
+        setErrorMessage(`Backend error: ${response.status}`);
+        return;
+      }
+
+      if (data.error) {
+        setErrorMessage(data.error);
+        return;
+      }
+
+      if (data.analysis?.error) {
+        setErrorMessage(data.analysis.error);
+        return;
+      }
+
+      const normalisedResult = normaliseAnalysisResponse(data);
+
+      console.log("NORMALISED RESULT:", normalisedResult);
+
+      setAnalysisResult(normalisedResult);
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setErrorMessage(`Frontend error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
-
-    if (data.analysis?.error) {
-      setErrorMessage(data.analysis.error);
-      return;
-    }
-
-    // Normalise backend response shape
-    let result = data;
-
-    if (data.analysis) {
-      result = data.analysis;
-    }
-
-    if (data.analysis?.analysis) {
-      result = data.analysis.analysis;
-    }
-
-    console.log("NORMALISED RESULT:", result);
-
-    setAnalysisResult(result);
-  } catch (error) {
-    console.error("Fetch error:", error);
-    setErrorMessage(`Frontend error: ${error.message}`);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const hasAnalysis = Boolean(analysisResult);
 
@@ -100,7 +107,7 @@ function App() {
         <h1>AI Fitness Form Feedback</h1>
         <p className="subtitle">
           Upload a squat video and get computer-vision based feedback on reps,
-          depth, and overall form.
+          depth, balance, and overall form.
         </p>
       </section>
 
@@ -140,7 +147,6 @@ function App() {
         </section>
       )}
 
-
       {hasAnalysis && (
         <section className="results-grid">
           <div className="card stat-card">
@@ -164,6 +170,13 @@ function App() {
             <p className="stat-label">Best Depth</p>
             <p className="stat-value">
               {analysisResult?.best_depth ?? "--"}°
+            </p>
+          </div>
+
+          <div className="card stat-card">
+            <p className="stat-label">Avg Imbalance</p>
+            <p className="stat-value">
+              {analysisResult?.average_imbalance ?? "--"}°
             </p>
           </div>
 
