@@ -1,0 +1,171 @@
+import { useState } from "react";
+import "./App.css";
+
+function App() {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+
+    setSelectedFile(file);
+    setAnalysisResult(null);
+    setErrorMessage("");
+
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setVideoPreview(previewUrl);
+    }
+  };
+
+  const handleAnalyseVideo = async () => {
+    if (!selectedFile) {
+      setErrorMessage("Please select a video first.");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage("");
+    setAnalysisResult(null);
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/analyse", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        setErrorMessage(data.error || "Something went wrong.");
+        return;
+      }
+
+      setAnalysisResult(data.analysis);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(
+        "Could not connect to the backend. Make sure FastAPI is running."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const hasAnalysis = analysisResult && !analysisResult.error;
+
+  return (
+    <main className="app">
+      <section className="hero">
+        <p className="eyebrow">LiftLens</p>
+        <h1>AI Fitness Form Feedback</h1>
+        <p className="subtitle">
+          Upload a squat video and get computer-vision based feedback on reps,
+          depth, and overall form.
+        </p>
+      </section>
+
+      <section className="card upload-card">
+        <h2>Upload squat video</h2>
+
+        <input
+          type="file"
+          accept="video/*"
+          onChange={handleFileChange}
+          className="file-input"
+        />
+
+        {videoPreview && (
+          <div className="video-preview">
+            <video src={videoPreview} controls />
+          </div>
+        )}
+
+        <button
+          onClick={handleAnalyseVideo}
+          disabled={isLoading}
+          className="analyse-button"
+        >
+          {isLoading ? "Analysing..." : "Analyse Video"}
+        </button>
+
+        {errorMessage && <p className="error">{errorMessage}</p>}
+      </section>
+
+      {isLoading && (
+        <section className="card">
+          <h2>Analysing movement...</h2>
+          <p>
+            The backend is processing the video frame by frame using MediaPipe.
+          </p>
+        </section>
+      )}
+
+      {hasAnalysis && (
+        <section className="results-grid">
+          <div className="card stat-card">
+            <p className="stat-label">Reps</p>
+            <p className="stat-value">{analysisResult.reps}</p>
+          </div>
+
+          <div className="card stat-card">
+            <p className="stat-label">Score</p>
+            <p className="stat-value">{analysisResult.score}/100</p>
+          </div>
+
+          <div className="card stat-card">
+            <p className="stat-label">Average Depth</p>
+            <p className="stat-value">
+              {analysisResult.average_depth ?? "--"}°
+            </p>
+          </div>
+
+          <div className="card stat-card">
+            <p className="stat-label">Best Depth</p>
+            <p className="stat-value">{analysisResult.best_depth ?? "--"}°</p>
+          </div>
+
+          <div className="card feedback-card">
+            <h2>Feedback</h2>
+            <ul>
+              {analysisResult.feedback.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="card rep-card">
+            <h2>Rep Details</h2>
+
+            {analysisResult.rep_details.length === 0 ? (
+              <p>No rep details detected.</p>
+            ) : (
+              <div className="rep-list">
+                {analysisResult.rep_details.map((rep) => (
+                  <div key={rep.rep_number} className="rep-item">
+                    <strong>Rep {rep.rep_number}</strong>
+                    <span>{rep.depth_angle}°</span>
+                    <span>{rep.depth_feedback}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="card debug-card">
+            <h2>Debug Info</h2>
+            <pre>{JSON.stringify(analysisResult.debug, null, 2)}</pre>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+export default App;
