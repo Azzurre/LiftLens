@@ -384,11 +384,15 @@ def main():
 
             frame_index += 1
 
-    summary = generate_analysis_summary(rep_count, rep_depths)
+    summary = generate_analysis_summary(rep_count, rep_depths, rep_details)
     
     print("\n === LiftLens Analysis Summary ===")
     print(json.dumps(summary, indent=4))
     
+    with open("pose_analysis_summary.json", "w") as f:
+        json.dump(summary, f, indent=4)
+    
+    print("Analysis summary saved to pose_analysis_summary.json")
     cap.release()
     cv2.destroyAllWindows()
 
