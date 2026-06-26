@@ -124,7 +124,7 @@ def classify_squat_position(min_knee_angle):
         return "Too shallow"
 
 
-def generate_analysis_summary(rep_count, rep_depths):
+def generate_analysis_summary(rep_count, rep_depths, rep_details):
     """
     Generates a summary of the squat analysis.
     """
@@ -137,7 +137,9 @@ def generate_analysis_summary(rep_count, rep_depths):
             "feedback": [
                 "No full squat reps were detected",
                 "Make sure your full body is visible and try again"
-            ]
+            ],
+            "rep_depths": [],
+            "rep_details": []
         }
     
     average_depth = sum(rep_depths) / len(rep_depths) if rep_depths else None
@@ -183,7 +185,8 @@ def generate_analysis_summary(rep_count, rep_depths):
         "best_depth": round(best_depth, 2) if best_depth is not None else None,
         "score": score,
         "feedback": feedback,
-        "rep_depths": [round(depth, 2) for depth in rep_depths]
+        "rep_depths": [round(depth, 2) for depth in rep_depths],
+        "rep_details": rep_details
     }
     
 
