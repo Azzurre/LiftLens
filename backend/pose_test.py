@@ -319,6 +319,11 @@ def main():
                     if current_rep_min_angle is not None:
                         rep_depths.append(current_rep_min_angle)
                         last_depth_feedback = classify_squat_position(current_rep_min_angle)
+                        rep_details.append({
+                            "rep_number": rep_count,
+                            "depth_angle": round(current_rep_min_angle, 2),
+                            "depth_feedback": last_depth_feedback
+                        })
                     current_rep_min_angle = None  # Reset for the next rep
                 # Display the angle on the frame
                 
