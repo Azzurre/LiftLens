@@ -228,6 +228,7 @@ def main():
         
         current_rep_min_angle = None
         rep_depths = []
+        rep_details = []
         last_depth_feedback = "No reps yet"
 
         while True:
