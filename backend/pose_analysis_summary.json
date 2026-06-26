@@ -1,0 +1,20 @@
+{
+    "reps": 1,
+    "average_depth": 68.9,
+    "best_depth": 68.9,
+    "score": 100,
+    "feedback": [
+        "All reps were good depth!",
+        "Your average squat depth is good."
+    ],
+    "rep_depths": [
+        68.9
+    ],
+    "rep_details": [
+        {
+            "rep_number": 1,
+            "depth_angle": 68.9,
+            "depth_feedback": "Good depth"
+        }
+    ]
+}

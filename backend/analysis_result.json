@@ -1,0 +1,25 @@
+{
+    "reps": 1,
+    "average_depth": 36.67,
+    "best_depth": 36.67,
+    "score": 100,
+    "feedback": [
+        "Great depth on all detected reps.",
+        "Your average squat depth looks strong."
+    ],
+    "rep_depths": [
+        36.67
+    ],
+    "rep_details": [
+        {
+            "rep_number": 1,
+            "depth_angle": 36.67,
+            "depth_feedback": "Good depth"
+        }
+    ],
+    "debug": {
+        "total_frames": 300,
+        "processed_pose_frames": 226,
+        "skipped_unclear_frames": 73
+    }
+}
